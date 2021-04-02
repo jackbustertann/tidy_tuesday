@@ -1,0 +1,111 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+install.packages(c(
+  "directlabels", "dplyr", "gameofthrones", "ggforce", "gghighlight", 
+  "ggnewscale", "ggplot2", "ggraph", "ggrepel", "ggtext", "ggthemes", 
+  "hexbin", "mapproj", "maps", "munsell", "ozmaps", "paletteer", 
+  "patchwork", "rmapshaper", "scico", "seriation", "sf", "stars", 
+  "tidygraph", "tidyr", "wesanderson", "tidytuesdayR"
+))
+```
+
+```{r}
+df <- tidytuesdayR::tt_load(2021, week = 9)
+```
+
+```{r}
+str(df$employed)
+```
+
+```{r}
+library("tidyverse")
+employed_processed <- df$employed %>%
+  filter(race_gender %in% c("Black or African American", "White") & year == 2020) %>%
+  mutate(minor_occupation = gsub(' and related', '', gsub(' occupations', '', minor_occupation))) %>%
+  mutate(minor_occupation = ifelse(minor_occupation %in% c("Service, except protective", "Protective service", "Installation, maintenance, and repair"), 'Trades & Services', ifelse(minor_occupation == 'Construction and extraction', 'Construction', ifelse(minor_occupation == 'Management, business, and financial operations', 'Finance', ifelse(minor_occupation == 'Office and administrative support', 'Admin', ifelse(minor_occupation %in% c('Transportation and material moving', 'Production'), 'Transport & Production', ifelse(minor_occupation == 'Farming, fishing, and forestry', 'Agriculture', minor_occupation))))))) %>%
+  mutate(race_gender = fct_relevel(race_gender, c("White", "Black or African American")))
+
+race_counts <- employed_processed %>%
+  group_by(race_gender) %>%
+  summarise(race_total = sum(employ_n, na.rm = TRUE))
+
+industry_counts <- employed_processed %>%
+  group_by(minor_occupation, race_gender) %>%
+  summarise(industry_total = sum(employ_n, na.rm = TRUE)) %>%
+  filter(industry_total > 0) %>%
+  inner_join(race_counts, by = c('race_gender' = 'race_gender')) %>%
+  mutate(industry_prop = industry_total / race_total) 
+
+industry_counts_black <- industry_counts %>%
+  filter(race_gender == "Black or African American") %>%
+  rename(black_prop = industry_prop)
+
+industry_counts_white <- industry_counts %>%
+  filter(race_gender == "White") %>%
+  rename(white_prop = industry_prop)
+
+employed_final <- industry_counts %>%
+  inner_join(industry_counts_black, by = c('minor_occupation' = 'minor_occupation')) %>%
+  inner_join(industry_counts_white, by = c('minor_occupation' = 'minor_occupation')) %>%
+  mutate(race_diff = black_prop - white_prop) %>%
+  mutate(
+    black_percent = ifelse(abs(race_diff) > 0.02, paste0(round(black_prop * 100, 1), ''), ''),
+    white_percent = ifelse(abs(race_diff) > 0.02, paste0(round(white_prop * 100, 1), ''), '')
+    )
+
+plot_final <- employed_final %>%
+  ggplot() +
+  geom_path(
+    aes(x = fct_reorder(minor_occupation, desc(race_diff)), y = industry_prop, group = minor_occupation, color = race_diff), size = 1,
+    arrow = arrow(type = 'closed', length = unit(0.2, 'cm'))) +
+  scale_color_gradient2(low = '#D64113', high = "#2E41BF", mid = 'grey') +
+  geom_text(aes(x=minor_occupation, y=black_prop, label=black_percent), vjust = 2.5, size = 3, family = "Courier") +
+  geom_text(aes(x=minor_occupation, y=white_prop, label=white_percent), vjust = 2.5, size = 3, family = "Courier") +
+  annotate(geom = "curve", x = 6.3, y = 0.015, xend = 6, yend = 0.025, curvature = .3, arrow = arrow(length = unit(1.5, "mm")), color = "black") +
+  annotate(geom = "text", x = 6.3, y = 0.015, label = "bold('% of black\n americans')", family = "Courier", color = "black", size = 1.8, hjust = 0.5, vjust = -0.6, parse = TRUE) +
+  annotate(geom = "curve", x = 6.3, y = 0.06, xend = 6, yend = 0.05, curvature = -.3, arrow = arrow(length = unit(1.5, "mm")), color = "black") +
+  annotate(geom = "text", x = 6.3, y = 0.06, label = "bold('% of white\n americans')", family = "Courier", color = "black", size = 1.8, hjust = 0.5, vjust = -0.6, parse = TRUE) +
+  coord_flip() +
+  scale_x_discrete(
+  name = NULL) +
+  scale_y_continuous(
+  name = NULL,
+  breaks = NULL) +
+  labs(
+    title = "Employment Inequality in America",
+    subtitle = "Black americans are generally underrepresented in skilled, well paid occupations",
+    caption = "Data Source: BLS | Created By: Jack Tann (@jacktann3)"
+  ) +
+  theme(
+    plot.title = element_text(color = "black", family = "Courier", face = "bold", size = 15),
+    plot.subtitle = element_markdown(family = "Courier", size = 9),
+    plot.caption = element_text(family = "Courier", size = 5),
+    plot.background = element_rect(fill = "#fff1e4"),
+    panel.grid = element_blank(),
+    panel.background = element_rect(fill = "#fff1e4"),
+    axis.ticks = element_blank(),
+    panel.grid.major.y = element_line(color = 'grey', size = 0.2),
+    axis.text = element_text(family = "Courier", face = "bold"),
+    legend.position = "none")
+print(plot_final)
+ggsave("W092021.png", plot_final, width = 8, height = 5)
+```
+
+```{r}
+employed_final
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+

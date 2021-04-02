@@ -1,0 +1,138 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+install.packages(c(
+  "directlabels", "dplyr", "gameofthrones", "ggforce", "gghighlight", 
+  "ggnewscale", "ggplot2", "ggraph", "ggrepel", "ggtext", "ggthemes", 
+  "hexbin", "mapproj", "maps", "munsell", "ozmaps", "paletteer", 
+  "patchwork", "rmapshaper", "scico", "seriation", "sf", "stars", 
+  "tidygraph", "tidyr", "wesanderson", "tidytuesdayR"
+))
+```
+
+```{r}
+df <- tidytuesdayR::tt_load(2021, week = 10)
+```
+
+```{r}
+str(df)
+```
+
+```{r}
+head(df)
+```
+
+```{r}
+library("tidyverse")
+df$youtube %>%
+  group_by(brand) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count))
+```
+```{r}
+#which brands produce the most controversial ads?
+df_processed <- df$youtube %>%
+  mutate(dislike_ratio = dislike_count / (like_count + dislike_count)) %>%
+  mutate(controversial = ifelse(dislike_ratio >= 0.2, 'TRUE', 'FALSE')) %>%
+  mutate(
+  funny = if_else(funny == 'TRUE', 1, 0),
+  show_product_quickly = if_else(show_product_quickly == 'TRUE', 1, 0),
+  patriotic = if_else(patriotic == 'TRUE', 1, 0),
+  celebrity = if_else(celebrity == 'TRUE', 1, 0),
+  animals = if_else(animals== 'TRUE', 1, 0),
+  use_sex = if_else(use_sex == 'TRUE', 1, 0),
+  danger = if_else(danger == 'TRUE', 1, 0)
+  )
+
+df_processed %>%
+  filter(view_count > 10000) %>%
+  group_by(controversial) %>%
+  summarise(
+    funny = sum(funny) / n(),
+    show_product_quickly = sum(show_product_quickly) / n(),
+    patriotic = sum(patriotic) / n(),
+    celebrity = sum(celebrity) / n(),
+    animals = sum(animals) / n(),
+    use_sex = sum(use_sex) / n(),
+    danger = sum(danger) / n()
+    ) 
+```
+
+```{r}
+install.packages("ggbump")
+```
+
+
+```{r}
+#how are themes are evolving over time?
+library(ggbump)
+theme_ranks <- df_processed %>%
+  group_by(year) %>%
+  summarise(
+    funny = sum(funny) / n(),
+    show_product_quickly = sum(show_product_quickly) / n(),
+    patriotic = sum(patriotic) / n(),
+    celebrity = sum(celebrity) / n(),
+    animals = sum(animals) / n(),
+    use_sex = sum(use_sex) / n(),
+    danger = sum(danger) / n()
+    ) %>%
+  gather(theme, year_prop, funny:danger) %>%
+  group_by(year) %>%
+  mutate(year_rank = rank(-year_prop, ties.method = "random")) %>%
+  mutate(theme_color = ifelse(theme == 'use_sex', '#D64113', ifelse(theme == 'celebrity', '#2E41BF', 'grey'))) %>%
+  mutate(theme_label = ifelse(theme == 'use_sex', 'sex', ifelse(theme == 'show_product_quickly', 'branded', theme))) %>%
+  filter(year >= 2010)
+
+plot_final <- theme_ranks %>%
+  ggplot() + 
+  geom_bump(aes(year, year_rank, group = theme, color = theme_color), size = 2, smooth = 8) +
+  geom_text(data = filter(theme_ranks, year == 2020),
+            aes(x = year + 0.1, y = year_rank - 0.01, label = theme_label, color = theme_color), size = 3.5, hjust = 0, family = "Courier", face = "bold") +
+  geom_text(data = filter(theme_ranks, year == 2010),
+            aes(x = year -0.1, y = year_rank - 0.01, label = theme_label, color = theme_color), size = 3.5, hjust = 'right', family = "Courier", face = "bold") +
+  scale_color_identity() +
+  scale_x_continuous(
+  name = NULL,
+  breaks = seq(2010, 2020, 2),
+  limits = c(2008.6, 2021.4)) +
+  scale_y_reverse(
+  name = NULL,
+  breaks = NULL) +
+  labs(
+    title = "Less Sex, More Celebrities",
+    subtitle = "Superbowl Ad themes, ranked by number of appearances each year",
+    caption = "Data Source: FiveThirtyEight | Created By: Jack Tann (@jacktann3)"
+  ) +
+  theme(
+    plot.title = element_text(color = "black", family = "Courier", face = "bold", size = 15),
+    plot.subtitle = element_text(family = "Courier", size = 9),
+    plot.caption = element_text(family = "Courier", size = 5),
+    plot.background = element_rect(fill = "#fff1e4"),
+    panel.grid = element_blank(),
+    panel.background = element_rect(fill = "#fff1e4"),
+    axis.ticks = element_blank(),
+    axis.text = element_text(family = "Courier", face = "bold", size = 10),
+    legend.position = "none")
+print(plot_final)
+ggsave("W102021.png", plot_final, width = 8, height = 5)
+```
+
+```{r}
+filter(theme_ranks, year == 2010)
+```
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
