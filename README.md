@@ -23,3 +23,7 @@ A repo containing my data viz submissions for the #TidyTuesday initiative.
 ### Week 11 - Bechdel Test
 
 ![](2021/plots/W112021.png)
+
+### Week 14 - Makeup Shades
+
+![](2021/plots/W142021.png)
