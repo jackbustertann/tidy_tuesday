@@ -1,0 +1,109 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+df <- tidytuesdayR::tt_load(2021, week = 14)
+```
+
+```{r}
+library("tidyverse")
+df$allShades %>%
+  mutate(test = ifelse(
+    grepl("natural", tolower(name), fixed = TRUE) | grepl("nude", tolower(name), fixed = TRUE),
+    1,
+    0)) %>%
+  filter(test == 1) %>%
+  mutate(lightness_bin = cut(lightness, seq(0, 1, 0.05))) %>%
+  group_by(lightness_bin) %>%
+  summarise(n = n()) %>%
+  ggplot() +
+  geom_bar(aes(x = lightness_bin, y = n), stat = "identity")
+```
+
+```{r}
+library("tidyverse")
+nude_df <- df$allShades %>%
+  mutate(test = ifelse(
+    grepl("natural", tolower(name), fixed = TRUE) | grepl("nude", tolower(name), fixed = TRUE),
+    1,
+    0)) %>%
+  filter(test == 1) %>%
+  mutate(lightness = 1 - lightness) %>%
+  mutate(
+    x_min = floor(lightness / 0.05) * 0.05,
+    x_max = (floor(lightness / 0.05) * 0.05) + 0.05
+    ) %>%
+  group_by(x_min) %>%
+  mutate(
+    y_min = cumsum(test) - test,
+    y_max = cumsum(test)
+    ) %>%
+  arrange(x_min, y_min)
+
+median_shade = median(nude_df$lightness)
+
+plot <- nude_df %>%
+  ggplot() +
+  geom_rect(
+  aes(
+    xmin = x_min, 
+    xmax = x_max, 
+    ymin = y_min, 
+    ymax = y_max, 
+    fill = hex),
+  color = 'white') +
+  geom_vline(xintercept = median_shade, linetype = "dashed", color = "#c12664", size = 1) +
+  annotate(geom = "curve", x = 0.85, y = 5, xend = 0.825, yend = 1, curvature = .3, arrow = arrow(length = unit(1.5, "mm")), color = "#c12664") +
+  annotate(geom = "text", x = 0.85, y = 5, label = '"Nude Mocha"', family = "Courier", color = "#c12664", size = 2.5, hjust = 0, vjust = -1) +
+  scale_fill_manual(
+    breaks = nude_df$hex,
+    values = nude_df$hex) +
+  scale_x_continuous(
+    name = "Lightness", 
+    breaks = c(0, median_shade, 1),
+    labels = c(0, round(median_shade, 2), 1),
+    limits = c(0, 1)) +
+  scale_y_continuous(
+    name = "Number of Shades",
+    breaks = NULL) +
+  labs(
+    title = "The Shades of Nude",
+    subtitle = 'Foundation products named "nude" or "natural" have a strong skew towards the lighter end \nof the shade spectrum. This trend highlights the historical discrimination towards dark \nskinned consumers in the beauty industry.',
+    caption = "Data Source: The Pudding | Created By: Jack Tann (@jacktann3)"
+  ) +
+  theme(
+    text = element_text(family = 'Courier', color = "black"),
+    plot.title = element_text(color = "black", family = "Courier", face = "bold", size = 15),
+    plot.subtitle = element_text(family = "Courier", size = 9),
+    plot.caption = element_text(family = "Courier", size = 5),
+    plot.background = element_rect(fill = "#fff1e4"),
+    panel.grid = element_blank(),
+    axis.line = element_line(),
+    panel.background = element_rect(fill = "#fff1e4"),
+    axis.ticks = element_blank(),
+    axis.text = element_text(family = "Courier", face = "bold", size = 10),
+    axis.text.x = element_text(colour = c("black", "#c12664", "black")),
+    legend.position = "none")
+
+plot
+
+ggsave("../plots/W142021.png", plot, width = 8, height = 5)
+  
+```
+
+```{r}
+nude_df
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
