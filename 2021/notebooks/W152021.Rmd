@@ -1,0 +1,138 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+install.packages('remotes')
+remotes::install_github("davidsjoberg/ggstream")
+```
+
+
+```{r}
+df <- tidytuesdayR::tt_load(2021, week = 15)
+```
+
+```{r}
+library('tidyverse')
+library('ggstream')
+df$forest_area %>%
+  mutate(entity = ifelse(entity %in% c('Northern America', 'Central America', 'Caribbean'), 'North America', entity)) %>%
+  mutate(entity_type = ifelse(entity %in% c('Europe', 'South America', 'North America', 'Africa', 'Oceania', 'Asia'), 'Continent', ifelse(entity == 'World', 'World', 'Country'))) %>%
+  filter(entity_type == 'Continent') %>%
+  group_by(year, entity) %>%
+  summarise(total_area = sum(forest_area)) %>%
+  arrange(desc(total_area)) %>%
+  ggplot(aes(x = year, y = total_area, fill = entity)) +
+  geom_stream()
+```
+
+```{r}
+library('tidyverse')
+country_areas <-df$forest_area %>%
+  filter(!is.na(code)) %>%
+  inner_join(df$forest_area, by = c("code" = "code")) %>%
+  mutate(
+    year_delta = year.y - year.x,
+    area_delta = forest_area.y - forest_area.x
+    ) %>%
+  filter(year_delta == 20 & year.x == 2000) %>%
+  mutate(area_delta_prop = area_delta / forest_area.x) %>%
+  mutate(area_delta_bin = ifelse(area_delta_prop < -0.1, "< -10%", ifelse(area_delta_prop < -0.05, "-10% to -5%", ifelse(area_delta_prop < -0.025, "-5% to -2.5%", ifelse(area_delta_prop < 0, "-2.5% to 0%", ifelse(area_delta_prop < 0.025, "0% to 2.5%", ifelse(area_delta_prop < 0.05, "2.5% to 5%", ifelse(area_delta_prop < 0.1, "5% to 10%", ifelse(area_delta_prop >= 0.1, "> 10%","no data"))))))))) %>%
+  mutate(area_delta_bin = factor(area_delta_bin, levels=c("< -10%", "-10% to -5%", "-5% to -2.5%", "-2.5% to 0%", "0% to 2.5%", "2.5% to 5%", "5% to 10%", "> 10%"))) %>%
+  rename(c(
+    "country" = "entity.x", 
+    "area_before" = "forest_area.x", 
+    "area_after" = "forest_area.y")
+    ) %>%
+  mutate(country = ifelse(country == 'United States', 'USA', ifelse(country == 'United Kingdom', 'UK', ifelse(country == 'Czechia', 'Czech Republic', ifelse(country == 'Democratic Republic of Congo', 'Democratic Republic of the Congo', ifelse(country == 'Congo', 'Republic of Congo', ifelse(country == 'North Macedonia', 'Macedonia', country))))))) %>%
+  select(c("country", "area_before", "area_after", "area_delta", "area_delta_prop", "area_delta_bin")) %>%
+  arrange(area_delta_prop) 
+```
+
+```{r}
+country_areas %>%
+  arrange(area_delta)
+```
+
+```{r}
+df$forest_area$forest_area[1]
+```
+
+
+```{r}
+library("maps")
+library("ggtext")
+
+world_map <- map_data("world")
+country_areas_merged <- world_map %>%
+  left_join(country_areas, by = c("region" = "country")) %>%
+  filter(region != "Antarctica")
+
+plot <- country_areas_merged %>%
+  ggplot(aes(long, lat, group = group)) +
+  geom_polygon(aes(fill = area_delta_bin ), color = "grey", size = 0.2) +
+  scale_x_continuous(
+    name = NULL, 
+    breaks = NULL) +
+  scale_y_continuous(
+    name = NULL,
+    breaks = NULL) +
+  scale_fill_manual(values=c('#716400', "#bda700", "#d7ca66", "#f2edcc", "#dcf1cc", "#98d566", "#54ba00", "#326f00")) +
+  guides(fill = guide_legend(nrow = 1)) +
+  labs(
+    title = "The North South Divide",
+    subtitle = "There is a clear asymmetry in deforestation levels between developing countries in the Southern Hemisphere and developed countries in \nthe Northern Hemisphere",
+    caption = "Data Source: Our World in Data | Created By: Jack Tann (@jacktann3)"
+  ) +
+  annotate(geom = "text", x = -180, y = -65, label = "bold('% change in forest area between 2000 and 2020')", family = "Courier", color = "black", size = 4, hjust = 0, vjust = 0, parse = TRUE) +
+  theme(
+  text = element_text(family = 'Courier', color = "black"),
+  plot.title = element_text(color = "black", family = "Courier", face = "bold", size = 20),
+  plot.subtitle = element_text(family = "Courier", size = 12),
+  plot.caption = element_text(family = "Courier", size = 6),
+  plot.background = element_rect(fill = "#fff1e4"),
+  panel.grid = element_blank(),
+  axis.line = element_blank(),
+  panel.background = element_rect(fill = "#fff1e4"),
+  axis.ticks = element_blank(),
+  axis.text = element_text(family = "Courier", face = "bold", size = 10),
+  legend.position = c(0.38,0.01),
+  legend.text = element_text(size = 10),
+  legend.background = element_rect(fill = "#fff1e4"),
+  legend.title = element_blank())
+
+print(plot)
+ggsave("../plots/W152021.png", plot, width = 15, height = 10)
+```
+
+```{r}
+country_areas %>%
+  filter(!is.na(area_delta_prop)) %>%
+  mutate(area_delta_bin = ifelse(
+    area_delta_prop < -0.15, "less than 15%",
+    ifelse(area_delta_prop < -0.075, "-15% to -7.5%",
+    ifelse(area_delta_prop < -0.025, "-7.5% to -2.5%",
+    ifelse(area_delta_prop < 0, "-2.5% to 0%",
+    ifelse(is.na(area_delta_prop), "no data",
+    ifelse(area_delta_prop < 0.025, "0% to 2.5%",
+    )))))
+  ))
+
+```
+
+
+
+
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
