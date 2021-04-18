@@ -27,3 +27,7 @@ A repo containing my data viz submissions for the #TidyTuesday initiative.
 ### Week 14 - Makeup Shades
 
 ![](2021/plots/W142021.png)
+
+### Week 15 - Global Deforestation
+
+![](2021/plots/W152021.png)
