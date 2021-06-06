@@ -1,0 +1,210 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+df <- tidytuesdayR::tt_load(2021, week = 18)
+```
+
+```{r}
+install.packages(c('ggiraphExtra'))
+```
+
+
+```{r}
+library('tidyverse')
+library('ggiraphExtra')
+```
+
+```{r}
+summary(df$departures)
+```
+
+
+```{r}
+df$departures %>%
+  filter((fyear >= 2000) & (fyear <= 2018) & (ceo_dismissal == 1)) %>%
+  group_by(fyear, departure_code) %>%
+  mutate(departure_code = factor(departure_code)) %>%
+  summarise(count = n()) %>%
+  arrange(fyear) %>%
+  ggplot(aes(x = fyear, y = count, fill = departure_code)) +
+  geom_bar(stat = "identity")
+
+
+# number of departures roughly constant with time
+```
+
+```{r}
+depature_ranks <- df$departures %>%
+  filter(
+    ((fyear >= 2000) & (fyear <= 2018))
+    & !is.na(leftofc)) %>%
+  group_by(coname) %>%
+  mutate(
+    rank = rank(leftofc),
+    next_rank = rank(leftofc) + 1) %>%
+  arrange(coname, leftofc) 
+
+exec_tenures <- depature_ranks %>%
+  inner_join(depature_ranks, by = c("coname" = "coname", "rank" = "next_rank")) %>%
+  mutate(tenure = leftofc.x - leftofc.y) %>%
+  filter(
+    ceo_dismissal.x == 1,
+    is.na(interim_coceo.x)
+  ) %>%
+  select(exec_fullname.x, coname, departure_code.x, leftofc.x, leftofc.y, tenure, notes.x) %>%
+  arrange(tenure)
+
+exec_tenures
+```
+
+```{r}
+df$departures %>%
+  filter(
+    ((fyear >= 2000) & (fyear <= 2018))
+    & !is.na(leftofc)
+    & ceo_dismissal == 1) %>%
+  group_by(coname) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count))
+```
+
+```{r}
+df$departures %>%
+  filter(
+    ((fyear >= 2000) & (fyear <= 2018))
+    & !is.na(leftofc)
+    & coname == 'BIOLASE INC') %>%
+  arrange(leftofc) %>%
+  select(exec_fullname, leftofc, departure_code)
+```
+
+```{r}
+df$departures %>%
+  filter(
+    !is.na(leftofc)) %>%
+  mutate(
+    year = as.integer(format(leftofc, '%Y')),
+    month = as.integer(format(leftofc, '%m'))) %>%
+  group_by(year, month) %>%
+  summarise(count = n()) %>%
+  mutate(prop = count / sum(count)) %>%
+  filter(
+    year >= 2000
+    & year <= 2018) %>%
+  ggplot(aes(x = month, y = count, color = factor(year))) +
+  geom_line()
+  
+```
+
+```{r}
+df$departures %>%
+  filter(
+    !is.na(leftofc)) %>%
+  mutate(
+    year = as.integer(format(leftofc, '%Y')),
+    month = as.integer(format(leftofc, '%m'))) %>%
+  group_by(year, month) %>%
+  summarise(count = n()) %>%
+  mutate(prop = count / sum(count)) %>%
+  filter(
+    year >= 2000
+    & year <= 2018) %>%
+  group_by(month) %>%
+  summarise(
+    avg_prop = mean(prop),
+    avg_count = mean(count)) %>%
+  ggplot(aes(x = month, y = avg_count)) +
+  geom_polygon(fill = NA, color = 'black', size = 1.2) +
+  coord_radar() +
+  scale_x_continuous(
+    breaks = seq(0, 12),
+    limits = c(0,12)
+  ) +
+  scale_y_continuous(
+    limits = c(0,40)
+  )
+  
+  
+```
+
+```{r}
+plot <- df$departures %>%
+  filter(
+    !is.na(leftofc)) %>%
+  mutate(
+    year = as.integer(format(leftofc, '%Y')),
+    month = as.integer(format(leftofc, '%m'))) %>%
+  group_by(year, month) %>%
+  summarise(count = n()) %>%
+  mutate(
+    prop = count / sum(count)) %>%
+  filter(
+    year >= 2000
+    & year <= 2018) %>%
+  group_by(month) %>%
+  summarise(
+    avg_prop = mean(prop),
+    total_count = sum(count)) %>%
+  mutate(month_fill = ifelse((month == 1) | (month == 12), "#2E41BF", "#cfcfd6")) %>%
+  ggplot(aes(x = factor(month), y = total_count, fill = month_fill)) +
+  geom_bar(stat = 'identity') +
+  coord_polar() +
+  scale_x_discrete(
+    name = NULL,
+    labels = month.abb
+  ) +
+  scale_y_continuous(
+    name = NULL,
+    breaks = NULL
+  ) +
+  scale_fill_identity() +
+  labs(
+    title = "New Year, New Boss.",
+    subtitle = "1 in 4 of CEO departures in S&P 1500 firms between 2000 and 2018 took \nplace in the first and last months of the calendar year.",
+    caption = "Data Source: Gentry et al. | Created By: Jack Tann (@jacktann3)"
+  ) +
+  theme(
+    plot.title = element_text(color = "black", family = "Courier", face = "bold", size = 15),
+    plot.subtitle = element_text(family = "Courier", size = 7),
+    plot.caption = element_text(family = "Courier", size = 5),
+    plot.background = element_rect(fill = "#fff1e4"),
+    panel.grid = element_blank(),
+    panel.grid.major.x = element_line(color = 'white'),
+    panel.grid.major.y = element_line(color = 'white'),
+    panel.background = element_rect(fill = "#fff1e4"),
+    axis.ticks = element_blank(),
+    axis.text.x = element_text(family = "Courier", face = "bold", vjust = 10, size = 8),
+    legend.position = "none")
+print(plot)
+ggsave("W182021.png", plot, width = 5, height = 5)
+```
+
+```{r}
+df$departures %>%
+  filter(
+    !is.na(leftofc)) %>%
+  mutate(
+    year = as.integer(format(leftofc, '%Y')),
+    month = as.integer(format(leftofc, '%m'))) %>%
+  filter(
+    year >= 2000
+    & year <= 2018) %>%
+  mutate(month_fill = ifelse((month == 1) | (month == 12), 1, 0)) %>%
+  group_by(month_fill) %>%
+  summarise(count = n()) %>%
+  mutate(prop = count / sum(count))
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
