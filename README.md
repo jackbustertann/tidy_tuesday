@@ -31,3 +31,7 @@ A repo containing my data viz submissions for the #TidyTuesday initiative.
 ### Week 15 - Global Deforestation
 
 ![](2021/plots/W152021.png)
+
+### Week 18 - Global Deforestation
+
+![](2021/plots/W182021.png)
