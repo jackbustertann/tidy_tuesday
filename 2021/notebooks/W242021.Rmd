@@ -1,0 +1,105 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+df <- tidytuesdayR::tt_load(2021, week = 24)
+```
+
+```{r}
+trout_vs_white <- df$fishing %>%
+  filter(
+    lake == 'Superior' &
+    region %in% c('U.S. Total', 'Canada (ONT)') &
+    species %in% c('Lake Trout', 'Lake Whitefish')) %>%
+  mutate(values = replace_na(values, 0)) %>%
+  group_by(year, species) %>%
+  summarise(n_obs = sum(values)) %>%
+  filter(n_obs > 0) %>%
+  arrange(year, species) 
+
+plot_data <- trout_vs_white %>%
+  inner_join(trout_vs_white, by = c('species' = 'species')) %>%
+  mutate(year_diff = year.x - year.y) %>%
+  filter(year_diff <= 9 & year_diff >= 0) %>%
+  group_by(year.x, species) %>%
+  summarise(n_obs_avg = mean(n_obs.y)) %>%
+  mutate(
+    year = year.x,
+    y = ifelse(species == 'Lake Whitefish', -1 * n_obs_avg, n_obs_avg)
+  ) 
+
+library("ggtext")
+
+plot <- plot_data %>%
+  ggplot(aes(x = year, y = y, fill = species)) +
+  geom_area() +
+  geom_vline(xintercept = 1898, linetype = "dashed") +
+  geom_vline(xintercept = 1970, linetype = "dashed") +
+  annotate(geom = "text", x = 1882.5, y = 5000, label = '"The Fishing Boom"', family = "Courier", size = 3, hjust = 0.5, fontface = 2) +
+  annotate(geom = "text", x = 1934, y = 5000, label = '"The Whitefish Era"', family = "Courier", size = 3, hjust = 0.5, fontface = 2) +
+  annotate(geom = "text", x = 1992.5, y = 5000, label = '"The Trout Era"', family = "Courier", size = 3, hjust = 0.5, fontface = 2) +
+  scale_x_continuous(
+    name = NULL,
+    breaks = seq(1875, 2000, 25)
+  ) +
+  scale_y_continuous(
+    name = NULL,
+    breaks = NULL
+  ) +
+  labs(
+    title = "Superiority Complex",
+    subtitle = "ten-year rolling total in production amounts for <i style = 'color: #FC4E07;'>Whitefish</i> vs <i style = 'color: #00AFBB;'>Trout</i> in Lake Superior over <br>the 148 year period between 1867 - 2015 ",
+    caption = "Data Source: Great Lakes Database | Created By: Jack Tann (@jacktann3)"
+  ) +
+  theme(
+    plot.title = element_text(color = "black", family = "Courier", face = "bold", size = 15),
+    plot.subtitle = element_markdown(family = "Courier", size = 10),
+    plot.caption = element_text(family = "Courier", size = 5),
+    plot.background = element_rect(fill = "#fff1e4"),
+    panel.grid = element_blank(),
+    panel.background = element_rect(fill = "#fff1e4"),
+    axis.ticks = element_blank(),
+    axis.line.x.top = element_line(color = 'black'),
+    axis.text = element_text(family = "Courier", face = "bold"),
+    legend.position = "none")
+
+print(plot)
+ggsave("W242021.png", plot, width = 8, height = 5)
+
+# frame - Superior Lake
+# angle - How has production of Lake Trout vs Lake Whitefish compared over time
+# focus - 3 distinct era's, "The production boom", "The trout era", "The whitefish era"
+
+# design components
+# - dashed lines for eras
+# - years on zero line
+# - labels for eras
+
+
+```
+
+```{r}
+trout_vs_white %>%
+  inner_join(trout_vs_white, by = c('species' = 'species')) %>%
+  mutate(year_diff = year.x - year.y) %>%
+  filter(year_diff <= 9 & year_diff >= 0) %>%
+  group_by(year.x, species) %>%
+  summarise(n_obs_avg = mean(n_obs.y)) %>%
+  mutate(
+    year = year.x,
+    y = ifelse(species == 'Lake Whitefish', -1 * n_obs_avg, n_obs_avg)
+  )
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
