@@ -35,3 +35,7 @@ A repo containing my data viz submissions for the #TidyTuesday initiative.
 ### Week 18 - Global Deforestation
 
 ![](2021/plots/W182021.png)
+
+### Week 24 - Great Lakes Fish
+
+![](2021/plots/W242021.png)
