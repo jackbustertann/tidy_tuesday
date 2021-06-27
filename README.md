@@ -32,10 +32,14 @@ A repo containing my data viz submissions for the #TidyTuesday initiative.
 
 ![](2021/plots/W152021.png)
 
-### Week 18 - Global Deforestation
+### Week 18 - CEO Departures
 
 ![](2021/plots/W182021.png)
 
 ### Week 24 - Great Lakes Fish
 
 ![](2021/plots/W242021.png)
+
+### Week 26 - Public Park Access
+
+![](2021/plots/W262021.png)
