@@ -1,0 +1,156 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+df <- tidytuesdayR::tt_load(2021, week = 26)
+```
+
+```{r}
+str(df$parks)
+```
+
+
+```{r}
+library("tidyverse")
+
+df$parks %>%
+  filter(year == 2020) %>%
+  mutate(
+    spend_per_resident = as.numeric(str_extract(spend_per_resident_data, "[:digit:]+")),
+    pct_near_park = as.numeric(str_extract(pct_near_park_data, "[:digit:]+"))
+    ) %>%
+  ggplot(aes(x = reorder(city, desc(pct_near_park)), y = pct_near_park)) +
+  geom_col() + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+```{r}
+df$parks %>%
+  filter(year == 2020) %>%
+  mutate(
+    spend_per_resident = as.numeric(str_extract(spend_per_resident_data, "[:digit:]+")),
+    pct_near_park = as.numeric(str_extract(pct_near_park_data, "[:digit:]+"))
+    ) %>%
+  ggplot(aes(x = pct_near_park, y = spend_per_resident)) +
+  geom_point() +
+  scale_x_continuous(
+  limits = c(0, NA)
+) 
+```
+
+```{r}
+df$parks %>%
+  mutate(
+    spend_per_resident = as.numeric(str_extract(spend_per_resident_data, "[:digit:]+")),
+    pct_near_park = as.numeric(str_extract(pct_near_park_data, "[:digit:]+"))
+    ) %>%
+  group_by(year) %>%
+  summarise(
+    spend_q1 = quantile(spend_per_resident, 0.2),
+    spend_q3 = quantile(spend_per_resident, 0.8),
+    near_q1 = quantile(pct_near_park, 0.2),
+    near_q3 = quantile(pct_near_park, 0.8),
+  ) %>%
+  mutate(
+    spend_ratio = spend_q3 / spend_q1,
+    near_ratio = near_q3 / near_q1) %>%
+  filter(year %in% c(2012, 2020)) %>%
+  ggplot() +
+  geom_line(aes(year, spend_q3)) +
+  geom_line(aes(year, spend_q1)) +
+  scale_y_continuous(
+  name = NULL,
+  limits = c(0, NA)
+  ) 
+
+# is inequality in spend increasing with time?
+# how does park access (for dogs) compare geographically? 
+
+  
+```
+
+```{r}
+plot <- df$parks %>%
+  mutate(
+    spend_per_resident = as.numeric(str_extract(spend_per_resident_data, "[:digit:]+")),
+    pct_near_park = as.numeric(str_extract(pct_near_park_data, "[:digit:]+"))
+    ) %>%
+  group_by(city, year) %>%
+  summarise(
+    spend_per_resident = sum(spend_per_resident),
+    pct_near_park = sum(pct_near_park)
+  ) %>%
+  mutate(
+    highlight = ifelse(city == "Fresno", "#1D8534", "grey"),
+    size = ifelse(city == "Fresno", 1, 0.5)
+  ) %>%
+  filter(year %in% c(2012, 2020)) %>%
+  ggplot() +
+  geom_path(
+    aes(x = pct_near_park, y = spend_per_resident, group = city, color = highlight, size = size),
+    arrow = arrow(type = 'closed', length = unit(0.2, 'cm'))
+    ) +
+  annotate(geom = "text", x = 0, y = 150, label = 'park access in Fresno has increased by 32 percentage \npoints between 2012 and 2020 despite a $5 fall in \nspend per resident', family = "Courier", size = 2, hjust = 0, color = "#1D8534") +
+  scale_x_continuous(
+    name = "Access to parks",
+    breaks = seq(0, 100, 20),
+    labels = paste0(seq(0, 100, 20), '%'),
+    limits = c(0, 100)
+  ) +
+  scale_y_continuous(
+    name = "Spend per resident",
+    breaks = seq(0, 400, 100),
+    labels = paste0('$', seq(0, 400, 100))
+  ) +
+  scale_color_identity() +
+  scale_size_identity() +
+  labs(
+    title = "Public Park Access",
+    subtitle = "The inequality in access to parks appears to be shrinking despite a growing inequality in \nspend per resident",
+    caption = "Data Source: TPL | Created By: Jack Tann (@jacktann3)"
+  ) +
+  theme(
+    plot.title = element_text(color = "black", family = "Courier", face = "bold", size = 15),
+    plot.subtitle = element_text(family = "Courier", size = 10),
+    plot.caption = element_text(family = "Courier", size = 5),
+    plot.background = element_rect(fill = "#fff1e4"),
+    panel.grid = element_blank(),
+    panel.background = element_rect(fill = "#fff1e4"),
+    axis.ticks = element_blank(),
+    axis.line = element_line(color = 'black'),
+    axis.text = element_text(family = "Courier", face = "bold"),
+    legend.position = "none")
+
+print(plot)
+ggsave("W262021.png", plot, width = 8, height = 5)
+```
+
+```{r}
+df$parks %>%
+  mutate(
+    spend_per_resident = as.numeric(str_extract(spend_per_resident_data, "[:digit:]+")),
+    pct_near_park = as.numeric(str_extract(pct_near_park_data, "[:digit:]+"))
+    ) %>%
+  group_by(city, year) %>%
+  summarise(
+    spend_per_resident = sum(spend_per_resident),
+    pct_near_park = sum(pct_near_park)
+  ) %>%
+  filter(
+    year %in% c(2012, 2020) &
+    city == "Fresno") %>%
+  arrange(spend_per_resident)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
