@@ -87,7 +87,7 @@ plot <- df$parks %>%
     pct_near_park = sum(pct_near_park)
   ) %>%
   mutate(
-    highlight = ifelse(city == "Fresno", "#1D8534", "grey"),
+    highlight = ifelse(city == "Fresno", "#1D8534", "#cfcfd6"),
     size = ifelse(city == "Fresno", 1, 0.5)
   ) %>%
   filter(year %in% c(2012, 2020)) %>%
@@ -96,9 +96,10 @@ plot <- df$parks %>%
     aes(x = pct_near_park, y = spend_per_resident, group = city, color = highlight, size = size),
     arrow = arrow(type = 'closed', length = unit(0.2, 'cm'))
     ) +
-  annotate(geom = "text", x = 0, y = 150, label = 'park access in Fresno has increased by 32 percentage \npoints between 2012 and 2020 despite a $5 fall in \nspend per resident', family = "Courier", size = 2, hjust = 0, color = "#1D8534") +
+  annotate(geom = "text", x = 0, y = 125, label = "park access in Fresno has increased by 32 \npercentage points, between 2012 and 2020, \ndespite a $12 fall in spend per resident", family = "Courier", size = 2, hjust = 0, color = "#393855") +
+  annotate(geom = "curve", x = 15, y = 100, xend = 40, yend = 45, curvature = .3, color = "#393855") +
   scale_x_continuous(
-    name = "Access to parks",
+    name = "Park access (within 10 mins walk)",
     breaks = seq(0, 100, 20),
     labels = paste0(seq(0, 100, 20), '%'),
     limits = c(0, 100)
@@ -111,8 +112,8 @@ plot <- df$parks %>%
   scale_color_identity() +
   scale_size_identity() +
   labs(
-    title = "Public Park Access",
-    subtitle = "The inequality in access to parks appears to be shrinking despite a growing inequality in \nspend per resident",
+    title = "Public Park Access in America",
+    subtitle = "Access to parks in America's most populated cities appears to be leveling out despite \na growing inequality in spend per resident",
     caption = "Data Source: TPL | Created By: Jack Tann (@jacktann3)"
   ) +
   theme(
