@@ -1,0 +1,285 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+df <- tidytuesdayR::tt_load(2021, week = 27)
+```
+
+```{r}
+install.packages('ggprism')
+```
+
+
+```{r}
+str(df$animal_rescues)
+
+# how are animal rescues distributed geographically?
+# which times of day/week/year do animal rescues happen most often?
+# how are animal rescues distribted by animal types over time?
+# how does the distribution of pump time/cost compare for anmial types?
+# how does hour/month of rescue compare for animal types?
+```
+
+```{r}
+library('tidyverse')
+library('ggtext')
+library('lubridate')
+df$animal_rescues %>%
+  mutate(
+    date_time_of_call = strptime(date_time_of_call, format="%d/%m/%Y %H:%M")
+  ) %>%
+  mutate(
+    hour_of_call = hour(date_time_of_call),
+    dow_of_call = wday(date_time_of_call),
+    month_of_call = month(date_time_of_call)
+  ) %>%
+  group_by(hour_of_call) %>%
+  summarise(n = n()) %>%
+  ggplot(aes(x = hour_of_call, y = n)) +
+  geom_col()
+```
+
+```{r}
+df$animal_rescues %>%
+  mutate(
+    date_time_of_call = strptime(date_time_of_call, format="%d/%m/%Y %H:%M")
+  ) %>%
+  mutate(
+    hour_of_call = hour(date_time_of_call),
+    dow_of_call = wday(date_time_of_call),
+    month_of_call = month(date_time_of_call),
+  ) %>%
+  group_by(cal_year, month_of_call) %>%
+  summarise(n = n()) %>%
+  mutate(prop = n / sum(n)) %>%
+  ggplot(aes(x = month_of_call, y = n, color = as.character(as.integer(cal_year)))) +
+  geom_line()
+```
+
+```{r}
+df$animal_rescues %>%
+    mutate(
+    animal_group_parent = ifelse(
+      str_to_title(animal_group_parent) %in% c('Cat', 'Bird',	'Dog', 'Fox', 'Horse', 'Deer', 'Squirrel'), 
+      str_to_title(animal_group_parent), 
+      'Other')) %>%
+  group_by(cal_year, animal_group_parent) %>%
+  summarise(n = n()) %>%
+  mutate(prop = n / sum(n)) %>%
+  ggplot(aes(x = cal_year, y = prop, color = animal_group_parent)) +
+  geom_line()
+```
+
+```{r}
+df$animal_rescues %>%
+    mutate(
+    animal_group_parent = ifelse(
+      str_to_title(animal_group_parent) %in% c('Cat', 'Bird',	'Dog', 'Fox', 'Horse', 'Deer', 'Squirrel'), 
+      str_to_title(animal_group_parent), 
+      'Other')) %>%
+  group_by(animal_group_parent) %>%
+  summarise(
+    avg_cost = mean(as.numeric(incident_notional_cost), na.rm = TRUE),
+    avg_hours = mean(as.numeric(pump_hours_total), na.rm = TRUE)
+  ) %>%
+  mutate(
+    avg_cost_per_hour = avg_cost / avg_hours
+  ) %>%
+  arrange(desc(avg_cost))
+```
+
+```{r}
+df$animal_rescues %>%
+  filter(pump_hours_total != 'NULL') %>%
+    mutate(
+    animal_group_parent = ifelse(
+      str_to_title(animal_group_parent) %in% c('Cat', 'Bird',	'Dog', 'Fox', 'Horse', 'Deer', 'Squirrel'), 
+      str_to_title(animal_group_parent), 
+      'Other'),
+    pump_hours = as.integer(pump_hours_total)) %>%
+  group_by(animal_group_parent, pump_hours) %>%
+  summarise(
+    n = n()
+  ) %>%
+  mutate(
+    prop = n / sum(n)) %>%
+  ggplot(aes(x = pump_hours, y = prop, color = animal_group_parent)) +
+  geom_line()
+```
+
+```{r}
+df$animal_rescues %>%
+    mutate(
+    date_time_of_call = strptime(date_time_of_call, format="%d/%m/%Y %H:%M"),
+    animal_group_parent = ifelse(
+      str_to_title(animal_group_parent) %in% c('Cat', 'Bird',	'Dog', 'Fox', 'Horse', 'Deer', 'Squirrel'), 
+      str_to_title(animal_group_parent), 
+      'Other')) %>%
+  mutate(
+    hour_of_call = hour(date_time_of_call),
+    dow_of_call = wday(date_time_of_call),
+    month_of_call = month(date_time_of_call),
+    ym_of_call = strftime(date_time_of_call, "%Y-%m")
+  ) %>%
+  group_by(animal_group_parent, hour_of_call) %>%
+  summarise(
+    n = n()
+  ) %>%
+  mutate(
+    prop = n / sum(n)
+  ) %>%
+  ggplot(aes(x = hour_of_call, y = prop, color = animal_group_parent)) +
+  geom_line()
+```
+
+```{r}
+df$animal_rescues %>%
+  filter(cal_year < 2021) %>%
+    mutate(
+    date_time_of_call = strptime(date_time_of_call, format="%d/%m/%Y %H:%M"),
+    animal_group_parent = ifelse(
+      str_to_title(animal_group_parent) %in% c('Cat', 'Dog'), 
+      str_to_title(animal_group_parent), 
+      'Other')) %>%
+  mutate(
+    hour_of_call = hour(date_time_of_call),
+    dow_of_call = wday(date_time_of_call),
+    month_of_call = month(date_time_of_call),
+    ym_of_call = strftime(date_time_of_call, "%Y-%m")
+  ) %>%
+  group_by(animal_group_parent, month_of_call) %>%
+  summarise(
+    n = n()
+  ) %>%
+  mutate(
+    prop = n / sum(n)
+  ) %>%
+  ggplot(aes(x = month_of_call, y = prop)) +
+  geom_col() +
+  facet_grid(rows = vars(animal_group_parent))
+```
+
+```{r}
+library('tidyverse')
+library('ggtext')
+library('lubridate')
+library('ggprism')
+#library(patchwork)
+
+date_counts <- df$animal_rescues %>%
+  mutate(
+    date = date(strptime(date_time_of_call, format="%d/%m/%Y %H:%M"))
+  ) %>%
+  group_by(date) %>%
+  summarise(count = n()) %>%
+  complete(date = seq.Date(min(date), max(date), by="day")) %>%
+  mutate(
+    count = replace_na(count, 0),
+    dummy = TRUE)
+
+rolling_date_counts <- date_counts %>%
+  inner_join(date_counts, by = "dummy") %>%
+  mutate(date_delta = as.integer(difftime(date.x, date.y, units = 'days'))) %>%
+  filter((date_delta >= 0) & (date_delta < 28)) %>%
+  group_by(date.x) %>%
+  summarise(
+    rolling_count = sum(count.y),
+    days = n()
+  ) %>%
+  mutate(
+    year = year(date.x),
+    yday = yday(date.x),
+    color = ifelse(year(date.x) == 2020, '#873A86', 'grey'),
+    dash = ifelse(year(date.x) >= 2020, FALSE, TRUE),
+    size = ifelse(year(date.x) >= 2020, 1, 0.25)) %>%
+  filter((days == 28) & !(year  %in% c(2009, 2021))) 
+
+data <- rolling_date_counts %>%
+  filter(year < 2020) %>%
+  group_by(yday) %>%
+  summarise(
+    min_count = min(rolling_count),
+    max_count = max(rolling_count)) %>%
+  inner_join(rolling_date_counts, by = "yday")
+  
+plot <- data %>%
+  ggplot() +
+  geom_ribbon(aes(yday,ymin=min_count,ymax=max_count),fill="grey",alpha=0.2) +
+  geom_line(aes(x = yday, y = rolling_count, group = as.character(as.integer(year)), color = color, size = size)) +
+  geom_vline(xintercept = 83, linetype = "dashed") +
+  coord_cartesian(clip = 'off') +
+  scale_color_identity() +
+  scale_size_identity() +
+  annotate(geom = "text", x = 368, y = 56, label = '2020', family = "Courier", size = 3, hjust = 0, fontface = 2, color = '#873A86') +
+  annotate(geom = "text", x = 83, y = 92, label = 'Lockdown', family = "Courier", size = 3, vjust = -1, fontface = 2, angle = 270) +
+  scale_x_continuous(
+    guide = "prism_minor",
+    name = NULL,
+    breaks = c(15.5, 45, 74.5, 105, 135.5, 166, 196.5, 227.5, 258, 288.5, 319, 350),
+    labels = c('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'),
+    limits = c(0, NA),
+    expand = c(0, 11)
+  ) +
+  scale_y_continuous(
+    name = NULL,
+    breaks = NULL,
+    limits = c(0, NA)
+  ) +
+  labs(
+    title = "The Lockdown Effect",
+    subtitle = "28-day rolling count of animal rescues by the London fire brigade between 2010 and 2020",
+    caption = "Data Source: London.gov | Created By: Jack Tann (@jacktann3)"
+  ) +
+  theme(
+    plot.title = element_text(color = "black", family = "Courier", face = "bold", size = 15),
+    plot.subtitle = element_text(family = "Courier", size = 10),
+    plot.caption = element_text(family = "Courier", size = 5),
+    plot.background = element_rect(fill = "#fff1e4"),
+    panel.grid = element_blank(),
+    panel.background = element_rect(fill = "#fff1e4"),
+    #axis.ticks = element_blank(),
+    axis.line.x = element_line(),  
+    axis.ticks.length.x = unit(0, "pt"),
+    axis.text = element_text(family = "Courier", face = "bold"),
+    axis.title = element_text(family = "Courier", color = "black"),
+    legend.position = "none")
+  
+print(plot)
+ggsave("W272021.png", plot, width = 8, height = 5)
+
+# add axis lines
+# add monthly ticks to x-axis
+# move lock down label to left center of line
+# add subtitle 
+
+```
+
+```{r}
+data %>%
+  filter(yday == 366)
+```
+
+
+```{r}
+df$animal_rescues %>%
+  mutate(
+    date = date(strptime(date_time_of_call, format="%d/%m/%Y %H:%M"))
+  ) %>%
+  group_by(date) %>%
+  summarise(count = n()) %>%
+  complete(date = seq.Date(min(date), max(date), by="day")) %>%
+  mutate(count = replace_na(count, 0)) %>%
+  mutate(dummy = TRUE)
+```
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+

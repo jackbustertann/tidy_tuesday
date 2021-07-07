@@ -76,6 +76,13 @@ df$parks %>%
 ```
 
 ```{r}
+library(ggtext)
+
+text_box <- data.frame(
+  x = 0, y = 150,
+  label = "park access in **Fresno** has increased by 32 percentage points, between 2012 and 2020, despite a $12 fall in spend per resident"
+)
+
 plot <- df$parks %>%
   mutate(
     spend_per_resident = as.numeric(str_extract(spend_per_resident_data, "[:digit:]+")),
@@ -96,8 +103,14 @@ plot <- df$parks %>%
     aes(x = pct_near_park, y = spend_per_resident, group = city, color = highlight, size = size),
     arrow = arrow(type = 'closed', length = unit(0.2, 'cm'))
     ) +
-  annotate(geom = "text", x = 0, y = 125, label = "park access in Fresno has increased by 32 \npercentage points, between 2012 and 2020, \ndespite a $12 fall in spend per resident", family = "Courier", size = 2, hjust = 0, color = "#393855") +
-  annotate(geom = "curve", x = 15, y = 100, xend = 40, yend = 45, curvature = .3, color = "#393855") +
+  geom_textbox(
+    data = text_box,
+    aes(x, y, label = label),
+    width = grid::unit(0.35, "npc"), # 73% of plot panel width
+    hjust = 0, vjust = 0, size = 2.5, fill = "#f2dfce", box.size = 0, family = "Courier"
+  ) +
+  #annotate(geom = "text", x = 0, y = 125, label = "park access in Fresno has increased by 32 \npercentage points, between 2012 and 2020, \ndespite a $12 fall in spend per resident", family = "Courier", size = 2, hjust = 0, color = "#393855") +
+  annotate(geom = "curve", x = 15, y = 150, xend = 40, yend = 45, curvature = .3, color = "#393855") +
   scale_x_continuous(
     name = "Park access (within 10 mins walk)",
     breaks = seq(0, 100, 20),
@@ -126,6 +139,7 @@ plot <- df$parks %>%
     axis.ticks = element_blank(),
     axis.line = element_line(color = 'black'),
     axis.text = element_text(family = "Courier", face = "bold"),
+    axis.title = element_text(family = "Courier", color = "black"),
     legend.position = "none")
 
 print(plot)

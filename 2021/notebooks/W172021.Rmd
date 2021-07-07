@@ -1,0 +1,55 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+df <- tidytuesdayR::tt_load(2021, week = 17)
+```
+
+
+```{r}
+library('tidyverse')
+library('lubridate')
+movie_ages <- df$netflix_titles %>%
+  filter(type == 'Movie') %>%
+  mutate(year_added = year(mdy(date_added))) %>%
+  mutate(age = year_added - release_year) %>%
+  filter((age >= 0) &  (year_added >= 2016)) %>%
+  mutate(age_bin = ifelse(age <= 1, '1: within a year', ifelse(age <= 3, '2: 2-3 years', ifelse(age <= 7, '3: 4-7 years', '4: 8+ years')))) %>%
+  group_by(year_added, age_bin) %>%
+  summarise(count = n()) %>%
+  mutate(prop = count / sum(count)) 
+
+
+movie_ages %>%
+  ggplot(aes(x = year_added, y = prop, fill = age_bin)) +
+  geom_area()
+```
+
+```{r}
+movie_ages %>%
+  ggplot(aes(x = year_added, y =count, fill = age_bin)) +
+  geom_area()
+```
+
+```{r}
+df$netflix_titles %>%
+  filter(type == 'Movie') %>%
+  mutate(genre = strsplit(listed_in, split = ", ")) %>%
+  unnest(genre) %>%
+  group_by(genre) %>%
+  summarise(n = n(), avg_rating = mean(rating))
+```
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
