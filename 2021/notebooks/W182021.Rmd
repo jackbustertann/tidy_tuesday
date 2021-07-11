@@ -166,8 +166,8 @@ plot <- df$departures %>%
   ) +
   scale_fill_identity() +
   labs(
-    title = "New Year, New Boss.",
-    subtitle = "1 in 4 of CEO departures in S&P 1500 firms between 2000 and 2018 took \nplace in the first and last months of the calendar year.",
+    title = "New Year, New Boss",
+    subtitle = "1 in 4 of CEO departures in S&P 1500 firms between 2000 and 2018 took \nplace in the first or last month of the calendar year",
     caption = "Data Source: Gentry et al. | Created By: Jack Tann (@jacktann3)"
   ) +
   theme(
@@ -183,7 +183,7 @@ plot <- df$departures %>%
     axis.text.x = element_text(family = "Courier", face = "bold", vjust = 10, size = 8),
     legend.position = "none")
 print(plot)
-ggsave("W182021.png", plot, width = 5, height = 5)
+ggsave("W182021.png", plot, width = 8, height = 5)
 ```
 
 ```{r}

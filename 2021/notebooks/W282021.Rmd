@@ -1,0 +1,215 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+df <- tidytuesdayR::tt_load(2021, week = 28)
+```
+
+```{r}
+install.packages("countrycode")
+```
+
+```{r}
+countries <- data.frame(df$holidays[, "country"])
+```
+
+
+
+```{r}
+library(countrycode)
+
+countries$continent <- countrycode(
+  sourcevar = countries[, "country"], 
+  origin = "country.name", 
+  destination = "continent")
+```
+
+
+```{r}
+df$holidays
+
+# how are independence days distributed throughout the year?
+# how are independence days distributed over time?
+# how did the decolonization of different empires compare?
+# how did the UK empire receed over time?
+```
+
+```{r}
+df$holidays %>%
+  filter(
+    !is.na(date_parsed)) %>%
+  group_by(independence_from) %>%
+  summarise(n = n()) %>%
+  arrange(desc(n))
+```
+
+
+```{r}
+library(tidyverse)
+library(lubridate)
+
+ind_years <- df$holidays %>%
+  filter(!is.na(date_parsed)) %>%
+  group_by(date_parsed) %>%
+  summarise(count = n()) %>%
+  complete(date_parsed = seq.Date(min(date_parsed), max(date_parsed), by="day")) %>%
+  arrange(date_parsed) %>%
+  mutate(count = replace_na(count, 0), dummy = TRUE) %>%
+  mutate(year = year(date_parsed)) %>%
+  group_by(year) %>%
+  summarise(count = sum(count))  %>%
+  mutate(dummy = TRUE)
+
+ind_years %>%
+  inner_join(ind_years, by = "dummy") %>%
+  filter((year.x < year.y + 10) & (year.x >= year.y)) %>%
+  group_by(year.x) %>%
+  summarise(rolling_count = sum(count.y)) %>%
+  filter(year.x >= 1800) %>%
+  ggplot() +
+  geom_line(aes(year.x, rolling_count)) 
+```
+
+```{r}
+countries <- data.frame(df$holidays[, "country"])
+countries$continent <- countrycode(
+  sourcevar = countries[, "country"], 
+  origin = "country.name", 
+  destination = "continent")
+
+df_processed <- df$holidays %>%
+  inner_join(countries, by = "country") %>%
+  filter(
+    !is.na(date_parsed) &
+    !is.na(continent)
+    ) %>%
+  mutate(
+    year = year(date_parsed),
+    independence_from = if_else(independence_from %in% c("United Kingdom", "France", "Spanish Empire", "Soviet Union"), independence_from, "Other")) %>%
+  filter(year > 1800) 
+
+continent_medians <- df_processed %>%
+  group_by(continent) %>%
+  summarise(
+    med = median(year),
+    min = min(year),
+    max = max(year),
+    min_adj = (floor(min(year) / 10) * 10) + 0.6,
+    max_adj = (ceiling(max(year) / 10) * 10) - 0.6)
+
+decade_counts <- df_processed %>%
+  mutate(decade = cut(year, breaks = seq(1800, 2020, 10), labels = seq(1800, 2010, 10))) %>%
+  group_by(continent, decade) %>%
+  summarise(n = n()) %>%
+  mutate(
+    decade = as.integer(as.character(decade))) %>%
+  complete(decade = seq(1800, 2010, 10)) %>%
+  mutate(n = replace_na(n, 0))
+
+plot <- decade_counts %>%
+  inner_join(continent_medians, by = "continent") %>%
+  mutate(continent = if_else(
+    continent == 'Americas', 'Americas\n(1804-1983)', 
+    if_else(continent == 'Europe', 'Europe\n(1804-2006)',
+    if_else(continent == 'Asia', 'Asia\n(1878-2002)',
+    if_else(continent == 'Africa', 'Africa\n(1847-2011)',
+    if_else(continent == 'Oceania', 'Oceania\n(1962-1980)',
+    continent)))))) %>%
+  arrange(decade) %>%
+  ggplot(aes(decade, n, fill = continent)) +
+  geom_col(position = position_nudge(x = 5)) + 
+  facet_grid(rows = vars(fct_reorder(continent, med))) +
+  geom_segment(aes(x = min_adj, xend = max_adj, y = 0, yend = 0, color = continent), size = 0.2) +
+  scale_x_continuous(
+    name = NULL
+  ) +
+  scale_y_continuous(
+    name = NULL,
+    breaks = NULL
+  ) +
+  labs(
+    title = "The Empire has Fallen",
+    subtitle = "Number of countries to gain independence in each decade between 1800 and 2020",
+    caption = "Data Source: Wikipedia | Created By: Jack Tann (@jacktann3)"
+  ) +
+  theme(
+    plot.title = element_text(color = "black", family = "Courier", face = "bold", size = 15),
+    plot.subtitle = element_text(family = "Courier", size = 10),
+    plot.caption = element_text(family = "Courier", size = 5),
+    plot.background = element_rect(fill = "#fff1e4"),
+    panel.grid = element_blank(),
+    panel.background = element_rect(fill = "#fff1e4"),
+    axis.ticks = element_blank(),
+    axis.text = element_text(family = "Courier", face = "bold"),
+    axis.title = element_text(family = "Courier", color = "black"),
+    strip.background = element_rect(fill= "#f2dfce"),
+    strip.text = element_text(family = "Courier", size = 7, face = "bold"),
+    legend.position = "none")
+
+print(plot)
+ggsave("W282021.png", plot, width = 8, height = 5)
+
+# add date range to facet strips
+# label special cases
+# title + subtitle
+```
+
+
+```{r}
+df_processed %>%
+  arrange(date_parsed)
+```
+
+
+```{r}
+col_medians <- df$holidays %>%
+  filter(!is.na(date_parsed)) %>%
+  mutate(year = year(date_parsed)) %>%
+  filter((year > 1800) & (independence_from %in% c("United Kingdom", "France", "Spanish Empire",	
+"Soviet Union"))) %>%
+  group_by(independence_from) %>%
+  summarise(m = median(year))
+
+decade_counts <- df$holidays %>%
+  filter(!is.na(date_parsed)) %>%
+  mutate(year = year(date_parsed)) %>%
+  filter((year > 1800) & (independence_from %in% c("United Kingdom", "France", "Spanish Empire",	
+"Soviet Union"))) %>%
+  mutate(decade = cut(year, breaks = seq(1800, 2020, 10), labels = seq(1800, 2010, 10))) %>%
+  group_by(independence_from, decade) %>%
+  summarise(n = n()) %>%
+  mutate(decade = as.integer(as.character(decade)), independence_from = factor(independence_from)) %>%
+  complete(decade = seq(1800, 2010, 10)) %>%
+  mutate(n = replace_na(n, 0)) 
+
+decade_counts %>%
+  inner_join(col_medians, by = "independence_from") %>%
+  arrange(decade) %>%
+  ggplot(aes(decade, n, fill = independence_from)) +
+  geom_col() + 
+  facet_grid(rows = vars(fct_reorder(independence_from, m)))
+```
+
+```{r}
+ind_year_medians <- df$holidays %>%
+  filter(!is.na(date_parsed)) %>%
+  mutate(year = year(date_parsed)) %>%
+  filter((year > 1800) & (independence_from %in% c("United Kingdom", "France", "Spanish Empire",	
+"Soviet Union"))) %>%
+  group_by(independence_from) %>%
+  summarise(m = median(year))
+```
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
