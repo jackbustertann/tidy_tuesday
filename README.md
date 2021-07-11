@@ -43,3 +43,7 @@ A repo containing my data viz submissions for the #TidyTuesday initiative.
 ### Week 26 - Public Park Access
 
 ![](2021/plots/W262021.png)
+
+### Week 27 - Animal Rescues
+
+![](2021/plots/W272021.png)
