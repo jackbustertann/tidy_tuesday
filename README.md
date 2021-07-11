@@ -47,3 +47,7 @@ A repo containing my data viz submissions for the #TidyTuesday initiative.
 ### Week 27 - Animal Rescues
 
 ![](2021/plots/W272021.png)
+
+### Week 28 - Independence Days
+
+![](2021/plots/W282021.png)
