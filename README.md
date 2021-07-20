@@ -51,3 +51,7 @@ A repo containing my data viz submissions for the #TidyTuesday initiative.
 ### Week 28 - Independence Days
 
 ![](2021/plots/W282021.png)
+
+### Week 29 - Scooby Doo
+
+![](2021/plots/W292021.png)
