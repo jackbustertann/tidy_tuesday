@@ -1,0 +1,245 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+df <- tidytuesdayR::tt_load(2021, week = 29)
+```
+
+```{r}
+str(df$scoobydoo)
+
+# how has popularity evolved over time?
+# how often did different characters capture or get caught by monster?
+# how did the frequency of different catch phrases evolve over time?
+# how often did events/phrases co-occur?
+```
+
+```{r}
+remotes::install_github("hrbrmstr/waffle")
+```
+
+```{r}
+library(extrafont)
+```
+
+```{r}
+font_import()
+```
+
+
+```{r}
+fonts()
+```
+
+```{r}
+loadfonts(quiet = TRUE)
+```
+
+
+
+
+```{r}
+library(waffle)
+library(tidyverse)
+```
+
+
+```{r}
+series_subset <- df$scoobydoo %>%
+  filter(format == 'TV Series') %>%
+  group_by(series_name) %>%
+  summarise(
+    episodes = n(),
+    avg_length = mean(run_time)) %>%
+  filter(
+    (avg_length > 20) &
+    (avg_length < 25) &
+    (episodes >= 10))
+
+episodes_subset <- df$scoobydoo %>%
+  inner_join(series_subset, by = c('series_name')) %>%
+  filter(
+    (format == 'TV Series') &
+    (monster_amount == 1))
+  
+
+caught_characters <- episodes_subset %>% 
+  gather(character, caught, caught_fred:caught_scooby) %>%
+  filter(caught == 'TRUE') %>%
+  separate(character, c(NA, 'character_caught')) %>%
+  select(index, character_caught) %>%
+  mutate(character_caught = str_to_title(character_caught))
+
+captured_characters <- episodes_subset %>% 
+  gather(character, captured, captured_fred:captured_scooby) %>%
+  filter(captured == 'TRUE') %>%
+  separate(character, c(NA, 'character_captured')) %>%
+  select(index, character_captured) %>%
+  mutate(character_captured = str_to_title(character_captured))
+```
+
+```{r}
+data_1 <- caught_characters %>%
+  inner_join(captured_characters, by = c("index")) %>%
+  arrange(index) %>%
+  group_by(character_caught, character_captured) %>%
+  summarise(captured_count = n()) %>%
+  filter(character_caught != character_captured) %>%
+  mutate(caught_count = sum(captured_count)) %>%
+  arrange(desc(caught_count))
+
+data_1 %>%
+  ggplot() +
+  geom_col(aes(x = fct_reorder(character_caught, desc(caught_count)), y = captured_count, fill = character_captured))
+```
+
+```{r}
+data_2 <- caught_characters %>%
+  inner_join(captured_characters, by = c("index")) %>%
+  arrange(index) %>%
+  group_by(character_caught, character_captured) %>%
+  summarise(captured_count = n()) %>%
+  filter(character_caught != character_captured) %>%
+  mutate(caught_count = sum(captured_count)) %>%
+  arrange(desc(caught_count)) %>%
+  mutate(
+    x = 6 - as.integer(factor(character_captured, levels = c('Fred', 'Scooby', 'Shaggy', 'Velma', 'Daphnie'))),
+    y = 6 - as.integer(factor(character_caught, levels = c('Fred', 'Scooby', 'Shaggy', 'Velma', 'Daphnie')))) %>%
+  mutate(
+  character_caught_image = case_when(
+    character_caught == "Fred" ~ "fred.png",
+    character_caught == "Scooby" ~ "scooby.png",
+    character_caught == "Shaggy" ~ "shaggy.png",
+    character_caught == "Velma" ~ "velma.png",
+    character_caught == "Daphnie" ~ "daphne.png"),
+  character_captured_image = case_when(
+    character_captured == "Fred" ~ "fred.png",
+    character_captured == "Scooby" ~ "scooby.png",
+    character_captured == "Shaggy" ~ "shaggy.png",
+    character_captured == "Velma" ~ "velma.png",
+    character_captured == "Daphnie" ~ "daphne.png"))
+
+plot <- data_2 %>%
+  ggplot(aes(x = x, y = y))  +
+  geom_point(aes(size = captured_count * 2), color = "#f2dfce") +
+  geom_text(aes(label = captured_count), size = 3, color = 'white') +
+  scale_size_identity() +
+  scale_x_continuous(
+    name = 'Who got captured?',
+    breaks = seq(1, 5),
+    labels = rev(c('Fred', 'Scooby', 'Shaggy', 'Velma', 'Daphnie')),
+    limits = c(0.9, NA)
+  ) +
+  scale_y_continuous(
+    name = 'Who caught the monster?',
+    breaks = seq(1, 5),
+    labels = rev(c('Fred', 'Scooby', 'Shaggy', 'Velma', 'Daphnie')),
+    limits = c(NA, 5.3)
+  ) +
+  theme(
+    plot.title = element_text(color = "black", family = "Courier", face = "bold", size = 15),
+    plot.subtitle = element_text(family = "Courier", size = 10),
+    plot.caption = element_text(family = "Courier", size = 5),
+    plot.background = element_rect(fill = "#fff1e4"),
+    panel.grid = element_blank(),
+    panel.background = element_rect(fill = "#fff1e4"),
+    axis.ticks = element_blank(),
+    axis.text = element_text(family = "Courier", face = "bold"),
+    axis.title = element_text(family = "Courier", color = "black"),
+    strip.background = element_rect(fill= "#f2dfce"),
+    strip.text = element_text(family = "Courier", size = 7, face = "bold"),
+    legend.position = "none")
+
+print(plot)
+ggsave("W292021.png", plot, width = 8, height = 5)
+
+# add totals to right
+# add images as axis labels
+# use special font
+```
+
+```{r}
+library(ggtext)
+link_to_img <- function(x, width = 40, height = 40) {
+  glue::glue("<img src='{x}' width='{width}' height='{height}'/>")
+}
+
+plot <- data_2 %>%
+  mutate(
+    character_caught_label = link_to_img(character_caught_image),
+    character_captured_label = link_to_img(character_captured_image)
+    ) %>%
+  ggplot(aes(x = fct_reorder(character_captured_label, x), y = fct_reorder(character_caught_label, y)))  +
+  geom_text(aes(size = captured_count * 1.8), label = "\u2620", family = "Arial Unicode MS") +
+  #geom_text(aes(label = captured_count), size = 3, color = 'white') +
+  scale_size_identity() +
+  scale_x_discrete(name = "Who got captured by the monster?") +
+  scale_y_discrete(name = "Who caught the monster?") +
+  labs(
+    title = "If it weren't for you meddling kids!",
+    subtitle = "Number of occasions each character rescued another character from a monster.",
+    caption = "Data Source: Kaggle | Created By: Jack Tann (@jacktann3)"
+  ) +
+  theme(
+    plot.title = element_text(color = "black", family = "Scooby Doo", face = "bold", size = 15),
+    plot.subtitle = element_text(family = "Scooby Doo", size = 10),
+    plot.caption = element_text(family = "Scooby Doo", size = 5),
+    plot.background = element_rect(fill = "#cfe07b"),
+    panel.grid = element_blank(),
+    panel.background = element_rect(fill = "#cfe07b"),
+    axis.ticks = element_blank(),
+    axis.text = element_text(family = "Courier", face = "bold"),
+    axis.title = element_text(family = "Courier", color = "black"),
+    axis.text.x = element_markdown(margin = margin(t = -30, unit = "pt")),
+    axis.text.y = element_markdown(margin = margin(r = -30, unit = "pt")),
+    legend.position = "none")
+
+print(plot)
+ggsave("W292021.png", plot, width = 8, height = 5)
+```
+
+```{r}
+#remotes::install_github("hrbrmstr/waffle")
+data_1 %>%
+  mutate(
+    character_captured = factor(character_captured, levels = c('Fred', 'Scooby', 'Shaggy', 'Velma', 'Daphnie'))) %>%
+  ggplot() +
+  geom_waffle(aes(values = captured_count, fill = character_captured), n_rows = 3, flip = TRUE) +
+  facet_grid(cols = vars(fct_reorder(character_caught, 5 - caught_count)), switch="both") +
+  coord_equal() +
+  scale_x_continuous(
+    name = NULL,
+    breaks = NULL
+  ) +
+  scale_y_continuous(
+    name = NULL,
+    breaks = NULL
+  ) +
+  theme(
+    plot.title = element_text(color = "black", family = "Courier", face = "bold", size = 15),
+    plot.subtitle = element_text(family = "Courier", size = 10),
+    plot.caption = element_text(family = "Courier", size = 5),
+    plot.background = element_rect(fill = "#fff1e4"),
+    panel.grid = element_blank(),
+    panel.background = element_rect(fill = "#fff1e4"),
+    axis.ticks = element_blank(),
+    axis.text = element_text(family = "Courier", face = "bold"),
+    axis.title = element_text(family = "Courier", color = "black"),
+    strip.background = element_rect(fill= "#f2dfce"),
+    strip.text = element_text(family = "Courier", size = 7, face = "bold"),
+    legend.position = "none")
+  
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
