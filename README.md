@@ -55,3 +55,7 @@ A repo containing my data viz submissions for the #TidyTuesday initiative.
 ### Week 29 - Scooby Doo
 
 ![](2021/plots/W292021.png)
+
+### Week 31 - Olympics
+
+![](2021/plots/W312021.png)
