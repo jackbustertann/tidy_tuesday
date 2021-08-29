@@ -1,0 +1,439 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+library('tidyverse')
+library('waffle')
+```
+
+```{r}
+data <- tidytuesdayR::tt_load(2021, week = 31)
+
+df <- data$olympics
+```
+
+```{r}
+str(df)
+```
+
+```{r}
+# which nations are the most successful over time?
+df %>%
+  filter(
+    medal == 'Gold' &
+    season == 'Summer') %>%
+  mutate(
+    noc_reduced = ifelse(
+      grepl('Soviet|Russia|Unified', team), 'RUS', ifelse(
+      grepl('Germany', team), 'GER', ifelse(
+      grepl('China', team), 'CHN',
+      noc)))) %>%
+  group_by(year, noc_reduced) %>%
+  summarise(n =  n_distinct(event)) %>%
+  mutate(n_rank = rank(desc(n), ties.method = 'min')) %>%
+  filter(n_rank <= 10) %>%
+  mutate(
+    noc_highlight = ifelse(
+      noc_reduced %in% c('GBR', 'RUS', 'USA', 'CHN', 'GER'), noc_reduced,
+      'Other'),
+    noc_color = case_when(
+      noc_highlight == 'CHN' ~ '#e63946',
+      noc_highlight == 'GER' ~ '#f4a261',
+      noc_highlight == 'USA' ~ '#1d3557',
+      noc_highlight == 'RUS' ~ '#457b9d',
+      noc_highlight == 'GBR' ~ '#2a9d8f',
+      noc_highlight == 'Other' ~ 'lightgrey'
+    )) %>%
+  
+  ggplot(aes(
+    x = year, 
+    y = reorder(n_rank, desc(n_rank)), 
+    group = noc_reduced, 
+    color = noc_color)) +
+  
+  geom_line() +
+  
+  scale_color_identity()
+```
+
+```{r}
+# how has coverage of events compared between genders over time?
+df %>%
+  filter(
+    season == 'Summer') %>%
+  group_by(year, sex) %>%
+  summarise(n = n_distinct(event)) %>%
+  ggplot(aes(x = year, y = n, color = sex)) +
+  geom_line()
+```
+
+# ```{r}
+# df %>%
+#   filter(
+#     medal == 'Gold' &
+#     season == 'Summer' &
+#     year >= 1980) %>%
+#   mutate(
+#     noc = ifelse(
+#       grepl('Soviet|Russia|Unified', team), 'RUS', ifelse(
+#       grepl('Germany', team), 'GER', ifelse(
+#       grepl('China', team), 'CHN',
+#       noc)))) %>%
+#   group_by(event, noc) %>%
+#   summarize(
+#     n_noc = n_distinct(year)) %>%
+#   mutate(
+#     n_total = sum(n_noc),
+#     n_noc_prop = n_noc / n_total
+#   ) %>%
+#   filter(n_total >= 5) %>%
+#   arrange(desc(n_noc))
+# ```
+
+```{r}
+swim_events <- df %>%
+  filter(
+    season == 'Summer' &
+    sport == 'Swimming' &
+    year >= 1968) %>%
+  group_by(event) %>%
+  summarise(n = n_distinct(year)) %>%
+  filter(n == 13) %>%
+  select(event)
+
+swim_athlete_medals <- df %>%
+  filter(year >= 1968 & !is.na(medal)) %>%
+  inner_join(swim_events, by = "event") %>%
+  group_by(name, sex, noc, medal) %>%
+  summarise(n = n()) %>%
+  spread(medal, n) %>%
+  mutate(
+    n_gold = replace_na(Gold, 0),
+    n_silver = replace_na(Silver, 0),
+    n_bronze = replace_na(Bronze, 0)
+  ) %>%
+  arrange(desc(n_gold), desc(n_silver), desc(n_bronze)) %>%
+  select(name, sex, noc, n_gold, n_silver, n_bronze)
+
+swim_country_medals <- df %>%
+  filter(year >= 1968 & !is.na(medal)) %>%
+  inner_join(swim_events, by = "event") %>%
+  group_by(year, event, sex, noc, medal) %>%
+  summarise(n = n()) %>%
+  mutate(n_medals = ifelse(n > 2, 1, n)) %>%
+  group_by(noc, sex, medal) %>%
+  summarise(n_medals = sum(n_medals)) %>%
+  spread(medal, n_medals) %>%
+  mutate(
+    n_gold = replace_na(Gold, 0),
+    n_silver = replace_na(Silver, 0),
+    n_bronze = replace_na(Bronze, 0)
+  ) %>%
+  arrange(desc(n_gold), desc(n_silver), desc(n_bronze)) %>%
+  select(noc, sex, n_gold, n_silver, n_bronze)
+```
+
+```{r}
+# what can be defined as the "modern era" of indoor swimming?
+df %>%
+  filter(
+    season == 'Summer' &
+    sport == 'Swimming' &
+    !grepl('Open Water', event)) %>%
+  group_by(year, sex) %>%
+  summarise(n = n_distinct(event)) %>%
+  ggplot(aes(x = year, y = n, color = sex)) +
+  geom_line()
+
+# 1968
+```
+
+```{r}
+swim_athlete_medals <- df %>%
+  filter(
+    season == 'Summer' &
+    sport == 'Swimming' &
+    !grepl('Open Water', event) &
+    year >= 1968 &
+    !is.na(medal)) %>%
+  group_by(name, noc, sex, medal) %>%
+  summarise(n = n()) %>%
+  spread(medal, n) %>%
+  mutate(
+    gold = replace_na(Gold, 0),
+    silver = replace_na(Silver, 0),
+    bronze = replace_na(Bronze, 0)
+  ) %>%
+  arrange(desc(gold), desc(silver), desc(bronze)) %>%
+  select(name, noc, sex, gold, silver, bronze)
+
+top_swim_athletes_m <- swim_athlete_medals %>%
+  filter(sex == 'M') %>%
+  within(rank <- rank(order(desc(gold), desc(silver), desc(bronze)), ties.method = 'min')) %>%
+  filter(rank <= 10) %>%
+  ungroup() %>%
+  select(name, rank)
+
+data_rect_m <- df %>%
+  filter(
+    season == 'Summer' &
+    sport == 'Swimming' &
+    !grepl('Open Water', event) &
+    year >= 1968 &
+    !is.na(medal)) %>%
+  inner_join(top_swim_athletes_m, by = "name") %>%
+  mutate(
+    dummy = 1,
+    medal_order = case_when(
+      medal == 'Gold' ~ 1,
+      medal == 'Silver' ~ 2,
+      medal == 'Bronze' ~ 3
+    ),
+    medal_color = case_when(
+      medal == 'Gold' ~ '#ffd700',
+      medal == 'Silver' ~ '#c0c0c0',
+      medal == 'Bronze' ~ '#cd7f32'
+    )) %>%
+  arrange(rank, medal_order, year, event) %>%
+  group_by(rank, name, noc) %>%
+  mutate(
+    x_max = cumsum(dummy) - 0.075,
+    x_min = cumsum(dummy) - 0.925,
+    y_max = rank - 0.15,
+    y_min = rank - 0.85) %>%
+  select(name, noc, medal_color, x_min, x_max, y_min, y_max) 
+
+data_rect_top_m <- data_rect_m %>%
+  filter(
+    rank == 1) %>%
+  ungroup() %>%
+  distinct(rank) %>%
+  mutate(
+    y_min = rank - 1,
+    y_max = rank)
+
+data_rect_us_m <- data_rect_m %>%
+  filter(
+    noc == 'USA') %>%
+  ungroup() %>%
+  distinct(rank) %>%
+  mutate(
+    y_min = rank - 1,
+    y_max = rank)
+
+data_labels_m <- data_rect_m %>%
+  ungroup() %>%
+  distinct(name) %>%
+  mutate(
+    name_short = case_when(
+      name == 'Michael Fred Phelps, II' ~ 'M. Phelps \n(USA)',
+      name == 'Mark Andrew Spitz' ~ 'M. Spitz \n(USA)',
+      name == 'Matthew Nicholas "Matt" Biondi' ~ 'M. Biondi \n(USA)',
+      name == 'Ryan Steven Lochte' ~ 'R. Lochte \n(USA)',
+      name == 'Gary Wayne Hall, Jr.' ~ 'G. Hall \n(USA)',
+      name == 'Ian James Thorpe' ~ 'I. Thorpe \n(AUS)',
+      name == 'Aaron Wells Peirsol' ~ 'A. Wells \n(USA)',
+      name == 'Nathan Ghar-Jun Adrian' ~ 'N. Adrian \n(USA)',
+      name == 'Thomas Michael "Tom" Jager' ~ 'T. Jager \n(USA)',
+      name == 'Jason Edward Lezak' ~ 'J. Lezak \n(USA)'
+    )
+  ) %>%
+  select(name_short)
+
+data_text_m <- swim_athlete_medals_m %>%
+  ungroup() %>%
+  distinct(name, noc) %>%
+  mutate(
+    athlete_color = if_else(
+      noc == 'USA', '#2E41BF', '#383E42'
+    ),
+    athlete_face = if_else(
+      name == 'Michael Fred Phelps, II', 'bold', 'plain'
+    )) 
+
+plot <- data_rect_m %>%
+  ggplot() +
+  geom_rect(
+    data = data_rect_top_m,
+    aes(
+      xmin = -Inf,
+      xmax = Inf,
+      ymin = y_min,
+      ymax = y_max),
+    fill = '#2E41BF', 
+    alpha = 1
+  ) +
+  geom_rect(
+    aes(
+      xmin = x_min, 
+      xmax = x_max, 
+      ymin = y_min, 
+      ymax = y_max,
+      fill = medal_color),
+    color = 'white') +
+  scale_fill_identity() +
+  scale_x_continuous(
+    breaks = seq(0, 25, 5),
+    limits = c(0, NA),
+    expand = expand_scale(add = c(0.15, 0.3))
+  ) +
+  scale_y_reverse(
+    breaks = seq(0.5, 9.5, 1),
+    labels = data_labels_m$name_short
+  ) +
+  labs(
+    title = "A League of his Own",
+    subtitle = "The top 10 most successful male olympic athletes in the modern era* of indoor swimming, \nsorted by medal count.",
+    caption = c("Data Sources: Financial Times & FiveThirtyEight | Created By: Jack Tann (@jacktann3)", "*(1968 onwards)")
+  ) +
+  theme(
+    text = element_text(color = "black", family = "Courier"),
+    
+    plot.title = element_text(face = "bold", size = 15),
+    plot.subtitle = element_text(size = 10),
+    plot.caption = element_text(
+      hjust=c(0, 1), 
+      color = c('#7A7A7A', 'black'),
+      size = 5),
+    plot.background = element_rect(fill = "white"),
+    
+    panel.grid = element_blank(),
+    panel.grid.major.x = element_line(color = '#f0f0f2'),
+    panel.background = element_rect(fill = "white"),
+    
+    axis.ticks = element_blank(),
+    axis.ticks.y = element_line(color = data_text_m$athlete_color),
+    axis.text.y = element_text(
+      vjust = 0.5, 
+      hjust=0.5, 
+      color = data_text_m$athlete_color,
+      face = data_text_m$athlete_face),
+    # axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=0.5),
+    
+    legend.position = "none",
+    plot.title.position = "plot",
+    plot.caption.position =  "plot")
+  
+print(plot)
+ggsave("../plots/W312021.png", plot, width = 8, height = 5)
+
+# change color of athlete names
+# annotate Phelps most prolific year
+
+```
+
+```{r}
+swim_athlete_text <- swim_athlete_medals_m %>%
+  ungroup() %>%
+  distinct(name, noc) %>%
+  mutate(
+    athlete_color = if_else(
+      noc == 'USA', '#2E41BF', '#cfcfd6'
+    ),
+    athlete_face = if_else(
+      name == 'Michael Fred Phelps, II', 'bold', 'plain'
+    )) 
+```
+
+
+```{r}
+data_rect_m %>%
+  ungroup() %>%
+  distinct(name) %>%
+  mutate(
+    name_short = case_when(
+      name == 'Michael Fred Phelps, II' ~ 'M. Phelps (USA)',
+      name == 'Mark Andrew Spitz' ~ 'M. Spitz (USA)',
+      name == 'Matthew Nicholas "Matt" Biondi' ~ 'M. Biondi (USA)',
+      name == 'Ryan Steven Lochte' ~ 'R. Lochte (USA)',
+      name == 'Gary Wayne Hall, Jr.' ~ 'G. Hall (USA)',
+      name == 'Ian James Thorpe' ~ 'I. Thorpe (AUS)',
+      name == 'Aaron Wells Peirsol' ~ 'A. Wells (USA)',
+      name == 'Nathan Ghar-Jun Adrian' ~ 'N. Adrian (USA)',
+      name == 'Thomas Michael "Tom" Jager' ~ 'T. Jager (USA)',
+      name == 'Jason Edward Lezak' ~ 'J. Lezak (USA)'
+    )
+  ) %>%
+  select(name_short)
+```
+
+
+# ```{r}
+# gym_events <- df %>%
+#   filter(
+#     season == 'Summer' &
+#     sport == 'Gymnastics' &
+#     year >= 1952) %>%
+#   group_by(event) %>%
+#   summarise(n = n_distinct(year)) %>%
+#   filter(n == 17) %>%
+#   select(event)
+# 
+# gym_athlete_medals <- df %>%
+#   filter(year >= 1952 & !is.na(medal)) %>%
+#   inner_join(gym_events, by = "event") %>%
+#   group_by(name, noc, medal) %>%
+#   summarise(n = n()) %>%
+#   spread(medal, n) %>%
+#   mutate(
+#     n_gold = replace_na(Gold, 0),
+#     n_silver = replace_na(Silver, 0),
+#     n_bronze = replace_na(Bronze, 0)
+#   ) %>%
+#   arrange(desc(n_gold), desc(n_silver), desc(n_bronze)) %>%
+#   select(name, noc, n_gold, n_silver, n_bronze)
+# 
+# gym_country_medals <- df %>%
+#   filter(year >= 1952 & !is.na(medal)) %>%
+#   inner_join(gym_events, by = "event") %>%
+#   group_by(year, event, noc, medal) %>%
+#   summarise(n = n()) %>%
+#   mutate(n_medals = ifelse(n > 2, 1, n)) %>%
+#   group_by(noc, medal) %>%
+#   summarise(n_medals = sum(n_medals)) %>%
+#   spread(medal, n_medals) %>%
+#   mutate(
+#     n_gold = replace_na(Gold, 0),
+#     n_silver = replace_na(Silver, 0),
+#     n_bronze = replace_na(Bronze, 0)
+#   ) %>%
+#   arrange(desc(n_gold), desc(n_silver), desc(n_bronze)) %>%
+#   select(noc, n_gold, n_silver, n_bronze)
+# ```
+
+```{r}
+df %>%
+  filter(year >= 1968 & medal == 'Gold') %>%
+  inner_join(swim_events, by = "event") %>%
+  distinct(year, noc, event) %>%
+  filter(noc == 'USA', grepl('Men', event)) %>%
+  ggplot(aes(x = year, y = event)) +
+  geom_point()
+```
+
+```{r}
+swim_athlete_medals <- within(swim_athlete_medals, rank <- rank(order(desc(n_gold), desc(n_silver), desc(n_bronze)), ties.method='first'))
+
+swim_athlete_medals %>%
+  filter(rank <= 10) %>%
+  gather(medal, count, n_gold:n_bronze) %>%
+  ggplot(aes(x = reorder(name, rank), y = count, group = medal, color = noc)) +
+  geom_col() 
+  # theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+

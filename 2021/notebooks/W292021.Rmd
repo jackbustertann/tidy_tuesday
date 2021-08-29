@@ -26,25 +26,14 @@ remotes::install_github("hrbrmstr/waffle")
 
 ```{r}
 library(extrafont)
-```
-
-```{r}
-font_import()
-```
-
-
-```{r}
-fonts()
-```
-
-```{r}
-loadfonts(quiet = TRUE)
+#font_import()
+#fonts()
+#loadfonts(quiet = TRUE)
 ```
 
 
-
-
 ```{r}
+remotes::install_github("hrbrmstr/waffle")
 library(waffle)
 library(tidyverse)
 ```
@@ -165,6 +154,50 @@ ggsave("W292021.png", plot, width = 8, height = 5)
 ```
 
 ```{r}
+plot <- data_2 %>%
+  mutate(
+    character_caught_label = link_to_img(character_caught_image),
+    character_captured_label = link_to_img(character_captured_image)
+    ) %>%
+  ggplot(aes(x = x, y = y))  +
+  #geom_point(aes(size = captured_count * 1.8), color = "#7a51a0") +
+  #geom_text(aes(label = captured_count), size = 3, color = '#f7a716', family = "Scooby Doo") +
+  geom_text(aes(size = captured_count * 1.8), label = "\u2620", family = "Arial Unicode MS", color = "#7a51a0") +
+  scale_size_identity() +
+  scale_x_continuous(
+    name = "Who got captured by the monster?",
+    breaks = seq(1, 5),
+    labels = rev(c('Fred', 'Scooby', 'Shaggy', 'Velma', 'Daphnie')),
+    limits = c(0.9, NA)
+    ) +
+  scale_y_continuous(
+    name = "Who caught the monster?",
+    breaks = seq(1, 5),
+    labels = rev(c('Fred', 'Scooby', 'Shaggy', 'Velma', 'Daphnie')),
+    limits = c(NA, 5.3)) +
+  labs(
+    title = "If it weren't for you meddling kids!",
+    subtitle = "Number of occasions each character rescued another character from a monster.",
+    caption = "Data Source: Kaggle | Created By: Jack Tann (@jacktann3)"
+  ) +
+  theme(
+    text = element_text(family = "Scooby Doo", color = "#7a51a0"),
+    plot.title = element_text(face = "bold", size = 20),
+    plot.subtitle = element_text(size = 10),
+    plot.caption = element_text(size = 5),
+    plot.background = element_rect(fill = "#cfe07b"),
+    panel.grid = element_blank(),
+    panel.background = element_rect(fill = "#cfe07b"),
+    axis.text = element_text(),
+    axis.ticks = element_blank(),
+    axis.title = element_text(size = 12),
+    legend.position = "none")
+
+print(plot)
+ggsave("W292021.png", plot, width = 8, height = 5)
+```
+
+```{r}
 library(ggtext)
 link_to_img <- function(x, width = 40, height = 40) {
   glue::glue("<img src='{x}' width='{width}' height='{height}'/>")
@@ -176,8 +209,7 @@ plot <- data_2 %>%
     character_captured_label = link_to_img(character_captured_image)
     ) %>%
   ggplot(aes(x = fct_reorder(character_captured_label, x), y = fct_reorder(character_caught_label, y)))  +
-  geom_text(aes(size = captured_count * 1.8), label = "\u2620", family = "Arial Unicode MS") +
-  #geom_text(aes(label = captured_count), size = 3, color = 'white') +
+  geom_text(aes(size = captured_count * 1.8), label = "\u2620", family = "Arial Unicode MS", color = "#7a51a0") +
   scale_size_identity() +
   scale_x_discrete(name = "Who got captured by the monster?") +
   scale_y_discrete(name = "Who caught the monster?") +
@@ -187,15 +219,14 @@ plot <- data_2 %>%
     caption = "Data Source: Kaggle | Created By: Jack Tann (@jacktann3)"
   ) +
   theme(
-    plot.title = element_text(color = "black", family = "Scooby Doo", face = "bold", size = 15),
-    plot.subtitle = element_text(family = "Scooby Doo", size = 10),
-    plot.caption = element_text(family = "Scooby Doo", size = 5),
+    plot.title = element_text(color = "#7a51a0", family = "Scooby Doo", face = "bold", size = 20),
+    plot.subtitle = element_text(color = "#7a51a0", family = "Scooby Doo", size = 10),
+    plot.caption = element_text(color = "#7a51a0", family = "Scooby Doo", size = 5),
     plot.background = element_rect(fill = "#cfe07b"),
     panel.grid = element_blank(),
     panel.background = element_rect(fill = "#cfe07b"),
     axis.ticks = element_blank(),
-    axis.text = element_text(family = "Courier", face = "bold"),
-    axis.title = element_text(family = "Courier", color = "black"),
+    axis.title = element_text(color = "#7a51a0", family = "Scooby Doo", size = 12),
     axis.text.x = element_markdown(margin = margin(t = -30, unit = "pt")),
     axis.text.y = element_markdown(margin = margin(r = -30, unit = "pt")),
     legend.position = "none")

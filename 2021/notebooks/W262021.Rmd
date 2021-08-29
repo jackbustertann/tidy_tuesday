@@ -122,7 +122,6 @@ plot <- df$parks %>%
     breaks = seq(0, 400, 100),
     labels = paste0('$', seq(0, 400, 100))
   ) +
-  scale_color_identity() +
   scale_size_identity() +
   labs(
     title = "Public Park Access in America",
